@@ -1,10 +1,10 @@
 # AsfPlayStatus
 
-> 版本：**v1.1.0** ｜ 兼容：ASF 6.3.8.4（.NET 10，linux-x64 单文件裁剪构建）
+> 版本：**v1.2.0** ｜ 兼容：ASF 6.3.8.4（.NET 10，linux-x64 单文件裁剪构建）
 
 把 ASF 内存中的“正在游玩”游戏列表暴露成自定义 IPC 端点，供 [asf-nav-bridge](https://github.com/Boston-Lobster/asf-nav-bridge)（导航页状态栏）等客户端实时读取。
 
-**v1.1.0 变更：实时挂机显示。**
+**v1.2.0 变更：实时挂机显示。**
 
 - 自动挂卡时逐游戏返回 `CardsRemaining`（剩余卡牌）与 `HoursPlayed`（已挂小时），并在 bot 级返回 `TimeRemaining`（预计剩余时间）与 `CardsRemaining`（队列总剩余卡牌）；
 - 新增 `SeenAt`：插件每 15 秒从 ASF 内存轮询一次并刷新，前端可据此展示“状态更新于 xx:xx:xx”；
