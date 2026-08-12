@@ -15,6 +15,14 @@ public sealed class PlayStatusGame {
 
 	[JsonInclude]
 	public string GameName { get; init; } = "";
+
+	/// <summary>自动挂卡时：该游戏剩余可掉落卡牌数（手动模式为 null）。</summary>
+	[JsonInclude]
+	public ushort? CardsRemaining { get; init; }
+
+	/// <summary>自动挂卡时：该游戏已挂机小时数（手动模式为 null）。</summary>
+	[JsonInclude]
+	public float? HoursPlayed { get; init; }
 }
 
 /// <summary>单个 bot 的实时游玩状态（插件维护在 ASF 内存中）。</summary>
@@ -41,6 +49,18 @@ public sealed class BotPlayStatus {
 
 	[JsonInclude]
 	public string UpdatedAt { get; set; } = "";
+
+	/// <summary>自动挂卡时：剩余挂卡时间（HH:mm:ss），手动模式为空字符串。</summary>
+	[JsonInclude]
+	public string TimeRemaining { get; set; } = "";
+
+	/// <summary>自动挂卡队列中剩余可掉落卡牌总数（手动模式为 0）。</summary>
+	[JsonInclude]
+	public uint CardsRemaining { get; set; }
+
+	/// <summary>最近一次实时轮询时间（每次定时刷新都会更新，用于前端显示状态新鲜度）。</summary>
+	[JsonInclude]
+	public string SeenAt { get; set; } = "";
 }
 
 /// <summary>POST /Api/PlayStatus 请求体：记录手动 play 的目标游戏列表。</summary>

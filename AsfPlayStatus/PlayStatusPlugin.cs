@@ -96,6 +96,9 @@ internal sealed class PlayStatusPlugin : IPlugin, IBot, IBotConnection {
 
 		state.Source = SourceManual;
 		state.UpdatedAt = Now();
+		state.TimeRemaining = "";
+		state.CardsRemaining = 0;
+		state.SeenAt = Now();
 		await PersistToDisk().ConfigureAwait(false);
 
 		return state;
@@ -115,16 +118,39 @@ internal sealed class PlayStatusPlugin : IPlugin, IBot, IBotConnection {
 		BotPlayStatus state = States.GetOrAdd(bot.BotName, static name => new BotPlayStatus { BotName = name });
 		RefreshLiveFlags(bot, state);
 
-		// 自动挂卡时，以 ASF 内存里的 CurrentGamesFarming 为准
+		// 自动挂卡时：实时读取 ASF 内存中的正在游玩列表 + 挂卡进度
 		if (bot.CardsFarmer.NowFarming) {
 			IReadOnlyCollection<Game> farming = bot.CardsFarmer.CurrentGamesFarmingReadOnly;
 
 			if (farming.Count > 0) {
-				state.CurrentGames = farming.Select(static game => new PlayStatusGame { AppID = game.AppID, GameName = game.GameName }).ToList();
+				state.CurrentGames = farming.Select(static game => new PlayStatusGame {
+					AppID = game.AppID,
+					GameName = game.GameName,
+					CardsRemaining = game.CardsRemaining,
+					HoursPlayed = game.HoursPlayed
+				}).ToList();
+
 				state.Source = SourceFarming;
+				state.TimeRemaining = FormatTimeSpan(bot.CardsFarmer.TimeRemaining);
+				state.CardsRemaining = (uint) bot.CardsFarmer.GamesToFarmReadOnly.Sum(static game => game.CardsRemaining);
 				state.UpdatedAt = Now();
 			}
+		} else if (state.Source == SourceFarming) {
+			// 自动挂卡已结束：清空列表，避免显示过期的挂机状态
+			state.CurrentGames = [];
+			state.Source = SourceNone;
+			state.TimeRemaining = "";
+			state.CardsRemaining = 0;
+			state.UpdatedAt = Now();
+		} else if (state.Source == SourceManual) {
+			// 手动 play：ASF 不保存该列表，由 play-keep/桥接每次下发后 POST 同步；
+			// 这里保留最近一次同步结果，只刷新实时在线标志
+			state.TimeRemaining = "";
+			state.CardsRemaining = 0;
 		}
+
+		// 每次轮询都刷新 SeenAt，供前端展示“状态实时更新时间”
+		state.SeenAt = Now();
 	}
 
 	private static void RefreshLiveFlags(Bot bot, BotPlayStatus state) {
@@ -135,6 +161,10 @@ internal sealed class PlayStatusPlugin : IPlugin, IBot, IBotConnection {
 
 	private static string Now() {
 		return DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+	}
+
+	private static string FormatTimeSpan(TimeSpan timeSpan) {
+		return timeSpan.TotalSeconds < 1 ? "" : timeSpan.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
 	}
 
 	private static string PersistenceFilePath {
