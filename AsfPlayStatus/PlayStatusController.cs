@@ -41,6 +41,6 @@ public sealed class PlayStatusController : ArchiController {
 
 		BotPlayStatus status = await PlayStatusPlugin.SetManualGames(bot, request.AppIDs, request.GameNames).ConfigureAwait(false);
 
-		return Ok(new GenericResponse<BotPlayStatus>(status));
+		return Ok(new GenericResponse<BotPlayStatus>(PlayStatusPlugin.MaskForApi(status)));
 	}
 }

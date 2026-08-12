@@ -1,12 +1,18 @@
 # AsfPlayStatus
 
-> 版本：**v1.2.0** ｜ 兼容：ASF 6.3.8.4（.NET 10，linux-x64 单文件裁剪构建）
+> 版本：**v1.2.1** ｜ 兼容：ASF 6.3.8.4（.NET 10，linux-x64 单文件裁剪构建）
 
 把 ASF 内存中的“正在游玩”游戏列表暴露成自定义 IPC 端点，供 [asf-nav-bridge](https://github.com/Boston-Lobster/asf-nav-bridge)（导航页状态栏）等客户端实时读取。
 
+**v1.2.1 变更：隐私处理。**
+
+- 不再返回挂机时长字段 `HoursPlayed`（挂机小时数属于隐私信息）；
+- 对外输出中的账号名（bot key 与 `BotName`）统一掩码为 `bot1`/`bot2`...，不暴露真实账号名；
+- 内部仍使用真实 bot 名读写（ASF IPC、持久化文件不受影响），仅 API 输出做脱敏。
+
 **v1.2.0 变更：实时挂机显示。**
 
-- 自动挂卡时逐游戏返回 `CardsRemaining`（剩余卡牌）与 `HoursPlayed`（已挂小时），并在 bot 级返回 `TimeRemaining`（预计剩余时间）与 `CardsRemaining`（队列总剩余卡牌）；
+- 自动挂卡时逐游戏返回 `CardsRemaining`（剩余卡牌），并在 bot 级返回 `TimeRemaining`（预计剩余时间）与 `CardsRemaining`（队列总剩余卡牌）；
 - 新增 `SeenAt`：插件每 15 秒从 ASF 内存轮询一次并刷新，前端可据此展示“状态更新于 xx:xx:xx”；
 - 自动挂卡结束后自动清空列表，不再显示过期状态；
 - 手动 `play` 列表由外部（play-keep.sh / asf-bridge）POST 同步，建议每次下发 play 后立即 POST，保证显示与 ASF 实际收到的命令一致。
@@ -28,14 +34,14 @@ ASF 6.x 的手动 `play` 命令只把游戏列表发送给 Steam，**不会**把
 ```json
 {
   "Result": {
-    "YOUR_BOT": {
-      "BotName": "YOUR_BOT",
+    "bot1": {
+      "BotName": "bot1",
       "Connected": true,
       "Paused": true,
       "Farming": false,
       "CurrentGames": [
-        { "AppID": 123456, "GameName": "Example Game", "CardsRemaining": 3, "HoursPlayed": 12.5 },
-        { "AppID": 654321, "GameName": "Another Game 1896", "CardsRemaining": 0, "HoursPlayed": 8.2 }
+        { "AppID": 123456, "GameName": "Example Game", "CardsRemaining": 3 },
+        { "AppID": 654321, "GameName": "Another Game", "CardsRemaining": 0 }
       ],
       "Source": "Manual",
       "TimeRemaining": "01:30:00",
@@ -56,9 +62,8 @@ ASF 6.x 的手动 `play` 命令只把游戏列表发送给 Steam，**不会**把
 ```json
 {
   "Bot": "YOUR_BOT",
-  "AppIDs": [123456, 654321, 789012],
+  "AppIDs": [123456, 654321],
   "GameNames": {
-    "123456": "Example Game",
     "123456": "Example Game",
     "654321": "Another Game"
   }
@@ -108,7 +113,7 @@ curl -H 'Authentication: <ASF_IPC_PASSWORD>' http://127.0.0.1:1242/api/playstatu
 
 ```bash
 curl -s -X POST -H "Authentication: <ASF_IPC_PASSWORD>" -H "Content-Type: application/json" \
-  -d '{"Bot":"YOUR_BOT","AppIDs":[123456,654321],"GameNames":{"123456":"Example Game","654321":"Another Game 1896"}}' \
+  -d '{"Bot":"YOUR_BOT","AppIDs":[123456,654321],"GameNames":{"123456":"Example Game","654321":"Another Game"}}' \
   http://127.0.0.1:1242/Api/PlayStatus > /dev/null 2>&1
 ```
 
@@ -118,7 +123,8 @@ curl -s -X POST -H "Authentication: <ASF_IPC_PASSWORD>" -H "Content-Type: applic
 
 - ASF 官方 linux-x64 包是**裁剪(trimmed)**单文件构建：插件内只使用 ASF 自身保留的文件 API（`File.WriteAllTextAsync`/`ReadAllTextAsync`/`Move`）和显式 `TypeInfoResolver` 的反射式 JSON 序列化，避免 `MissingMethodException`；
 - 若直接修改 `play-keep.sh` 的挂机列表，请同步更新桥接 `config.json`，并确保脚本同时 POST 到插件（见上文），导航页才会显示新列表；
-- 手动模式（Source=`Manual`）下 `CardsRemaining`/`HoursPlayed` 为 `null`，`TimeRemaining` 为空字符串——这些进度数据只在自动挂卡时才有。
+- 手动模式（Source=`Manual`）下逐游戏 `CardsRemaining` 为 `null`，`TimeRemaining` 为空字符串——进度数据只在自动挂卡时才有；
+- 出于隐私考虑，API 输出不再包含挂机时长（`HoursPlayed`）与真实账号名。
 
 ## 结构
 

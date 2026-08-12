@@ -73,7 +73,24 @@ internal sealed class PlayStatusPlugin : IPlugin, IBot, IBotConnection {
 	}
 
 	internal static IReadOnlyDictionary<string, BotPlayStatus> GetStatesSnapshot() {
-		return States.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+		// 隐私处理：对外输出的 key 与 BotName 均使用掩码（bot1/bot2...），不暴露真实账号名
+		Dictionary<string, BotPlayStatus> masked = new(StringComparer.OrdinalIgnoreCase);
+
+		foreach (string botName in States.Keys.OrderBy(static name => name, StringComparer.OrdinalIgnoreCase)) {
+			string maskedName = $"bot{masked.Count + 1}";
+			masked[maskedName] = States[botName].CloneWithBotName(maskedName);
+		}
+
+		return masked;
+	}
+
+	/// <summary>隐私处理：返回单个状态对外输出的副本（BotName 替换为掩码）。</summary>
+	internal static BotPlayStatus MaskForApi(BotPlayStatus state) {
+		string[] names = States.Keys.OrderBy(static name => name, StringComparer.OrdinalIgnoreCase).ToArray();
+		int index = Array.IndexOf(names, state.BotName);
+		string maskedName = index >= 0 ? $"bot{index + 1}" : "bot";
+
+		return state.CloneWithBotName(maskedName);
 	}
 
 	/// <summary>记录手动 play 的目标游戏列表到内存并持久化，返回更新后的状态。</summary>
@@ -126,8 +143,7 @@ internal sealed class PlayStatusPlugin : IPlugin, IBot, IBotConnection {
 				state.CurrentGames = farming.Select(static game => new PlayStatusGame {
 					AppID = game.AppID,
 					GameName = game.GameName,
-					CardsRemaining = game.CardsRemaining,
-					HoursPlayed = game.HoursPlayed
+					CardsRemaining = game.CardsRemaining
 				}).ToList();
 
 				state.Source = SourceFarming;
