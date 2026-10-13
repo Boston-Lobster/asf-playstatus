@@ -89,3 +89,4 @@ public sealed class PlayStatusSetRequest {
 	[JsonInclude]
 	public Dictionary<string, string>? GameNames { get; init; }
 }
+

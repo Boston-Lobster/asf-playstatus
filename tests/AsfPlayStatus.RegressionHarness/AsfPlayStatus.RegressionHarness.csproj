@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Include="..\..\AsfPlayStatus\PlayStatusController.cs" Link="ProductSource\PlayStatusController.cs" />
+    <Compile Include="..\..\AsfPlayStatus\PlayStatusModels.cs" Link="ProductSource\PlayStatusModels.cs" />
+    <Compile Include="..\..\AsfPlayStatus\PlayStatusPlugin.cs" Link="ProductSource\PlayStatusPlugin.cs" />
+  </ItemGroup>
+</Project>

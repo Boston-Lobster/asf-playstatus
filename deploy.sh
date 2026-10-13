@@ -19,3 +19,4 @@ ssh -i "$SSH_KEY" -o BatchMode=yes "root@$SERVER_IP" "mkdir -p '$ASF_PLUGINS_DIR
 scp -i "$SSH_KEY" -o BatchMode=yes "$DLL" "root@$SERVER_IP:$ASF_PLUGINS_DIR/AsfPlayStatus/AsfPlayStatus.dll"
 ssh -i "$SSH_KEY" -o BatchMode=yes "root@$SERVER_IP" "chown -R asf:asf '$ASF_PLUGINS_DIR/AsfPlayStatus' && systemctl restart asf && sleep 3 && systemctl is-active asf"
 echo "部署完成: $ASF_PLUGINS_DIR/AsfPlayStatus/AsfPlayStatus.dll"
+

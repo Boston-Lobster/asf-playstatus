@@ -1,35 +1,35 @@
 # AsfPlayStatus
 
-> 版本：**v1.2.1** ｜ 兼容：ASF 6.3.8.4（.NET 10，linux-x64 单文件裁剪构建）
+> 版本：**v1.3.1** ｜ 编译引用：ASF 6.3.8.4 ｜ 目标：.NET 10、linux-x64 ASF 裁剪单文件
 
-把 ASF 内存中的“正在游玩”游戏列表暴露成自定义 IPC 端点，供 [asf-nav-bridge](https://github.com/Boston-Lobster/asf-nav-bridge)（导航页状态栏）等客户端实时读取。
+本插件通过 ASF IPC 暴露自动挂卡状态和最近一次手动下发的游戏目标列表，供 [asf-nav-bridge](https://github.com/Boston-Lobster/asf-nav-bridge) 等客户端使用。
 
-**v1.2.1 变更：隐私处理。**
+## v1.3.1
 
-- 不再返回挂机时长字段 `HoursPlayed`（挂机小时数属于隐私信息）；
-- 对外输出中的账号名（bot key 与 `BotName`）统一掩码为 `bot1`/`bot2`...，不暴露真实账号名；
-- 内部仍使用真实 bot 名读写（ASF IPC、持久化文件不受影响），仅 API 输出做脱敏。
+- 新增 `GET /Api/PlayStatus?bot=<BotName>`，可选择单个 bot，响应 key 和 `BotName` 仍为掩码；无查询参数时保留全量响应。
+- 新增 `POST /Api/PlayStatus/Play`，调用 ASF 执行手动 play，并在 ASF 接受后记录目标。
+- `POST /Api/PlayStatus` 接受空 `AppIDs`，用于清除手动目标。
+- 只持久化非空手动目标；bot 删除时同步清理文件；重启后只为实际存在的 bot 恢复目标，不恢复旧连接或挂卡标志。
+- 并发持久化写入串行执行；写盘失败时 API 返回 HTTP 500。
+- `build.ps1` 按 ASF 版本隔离引用缓存并校验程序集版本，同时检查 `dotnet` 原生命令退出码。
 
-**v1.2.0 变更：实时挂机显示。**
+## 状态说明
 
-- 自动挂卡时逐游戏返回 `CardsRemaining`（剩余卡牌），并在 bot 级返回 `TimeRemaining`（预计剩余时间）与 `CardsRemaining`（队列总剩余卡牌）；
-- 新增 `SeenAt`：插件每 15 秒从 ASF 内存轮询一次并刷新，前端可据此展示“状态更新于 xx:xx:xx”；
-- 自动挂卡结束后自动清空列表，不再显示过期状态；
-- 手动 `play` 列表由外部（play-keep.sh / asf-bridge）POST 同步，建议每次下发 play 后立即 POST，保证显示与 ASF 实际收到的命令一致。
+自动挂卡时，插件从 ASF 内存读取 `CardsFarmer.CurrentGamesFarming` 和挂卡进度（`Source=Farming`）。手动模式下记录调用方最近一次成功同步的目标列表（`Source=Manual`）。ASF 没有可靠的结构化 API 来确认 `play`、`reset` 或 `resume` 后 Steam 当前展示的游戏，因此 `Manual` 和 `SeenAt` 只表示最近一次同步目标及插件轮询时间，不代表已确认 Steam 当前状态。
 
-## 为什么需要它
+如果通过 ASF 的 `reset`/`resume` 或其他方式停止或替换手动列表，调用方应向 `POST /Api/PlayStatus` 发送空 `AppIDs` 清除旧目标，或提交替换列表。插件不会根据轮询猜测手动列表已经停止。
 
-ASF 6.x 的手动 `play` 命令只把游戏列表发送给 Steam，**不会**把它存到任何可读属性里（`CardsFarmer.CurrentGamesFarming` 只在自动挂卡时非空，`CardsFarmer.Paused=true` 在手动模式下是正常现象）。因此本插件负责在 ASF 进程内维护这个列表：
+所有端点均使用 ASF IPC 身份验证，需要 `Authentication` 请求头。
 
-- **自动挂卡时**：直接读取 ASF 内存 `CardsFarmer.CurrentGamesFarming`（Source=`Farming`）；
-- **手动 `play` 时**：由外部（如 asf-bridge 重连成功后）通过 `POST /Api/PlayStatus` 把目标列表写入插件内存并持久化（Source=`Manual`）；
-- **持久化**：写入 `plugins/AsfPlayStatus/PlayStatus.json`，ASF 重启后自动恢复，不依赖 play-keep.sh 重复下发。
+## GET /Api/PlayStatus
 
-## 端点（均需 `Authentication` 请求头，同 ASF 内置 IPC）
+不带查询参数时返回所有已知 bot。可用完整 bot 名筛选单个状态，名称匹配不区分大小写：
 
-### GET /Api/PlayStatus
+```http
+GET /Api/PlayStatus?Bot=YOUR_BOT
+```
 
-返回所有 bot 的实时状态：
+查询参数只用于选择 bot，响应中的 key 和 `BotName` 仍使用 `bot1`、`bot2` 等掩码。不存在的 bot 返回 HTTP 400。
 
 ```json
 {
@@ -40,12 +40,11 @@ ASF 6.x 的手动 `play` 命令只把游戏列表发送给 Steam，**不会**把
       "Paused": true,
       "Farming": false,
       "CurrentGames": [
-        { "AppID": 123456, "GameName": "Example Game", "CardsRemaining": 3 },
-        { "AppID": 654321, "GameName": "Another Game", "CardsRemaining": 0 }
+        { "AppID": 123456, "GameName": "Example Game", "CardsRemaining": null }
       ],
       "Source": "Manual",
-      "TimeRemaining": "01:30:00",
-      "CardsRemaining": 3,
+      "TimeRemaining": "",
+      "CardsRemaining": 0,
       "UpdatedAt": "2026-08-12 23:30:00",
       "SeenAt": "2026-08-12 23:30:15"
     }
@@ -55,9 +54,9 @@ ASF 6.x 的手动 `play` 命令只把游戏列表发送给 Steam，**不会**把
 }
 ```
 
-### POST /Api/PlayStatus
+## POST /Api/PlayStatus
 
-记录手动 `play` 的目标列表（写入内存 + 持久化）：
+同步已经下发给 ASF 的列表；此端点本身不发送 Steam play 命令。传入空 `AppIDs` 会清空手动列表并将来源改为 `None`。
 
 ```json
 {
@@ -70,25 +69,47 @@ ASF 6.x 的手动 `play` 命令只把游戏列表发送给 Steam，**不会**把
 }
 ```
 
+## POST /Api/PlayStatus/Play
+
+请求体与上例一致。插件调用 ASF `Bot.Actions.Play`，只有 ASF 返回成功后才记录并持久化目标。`AppIDs` 需包含 1 至 32 个非零 ID。若 ASF 已接受命令但随后写盘失败，接口返回 HTTP 500；此时 play 命令可能已经生效。
+
+```bash
+curl -s -X POST \
+  -H "Authentication: <ASF_IPC_PASSWORD>" \
+  -H "Content-Type: application/json" \
+  -d '{"Bot":"YOUR_BOT","AppIDs":[123456,654321],"GameNames":{"123456":"Example Game","654321":"Another Game"}}' \
+  http://127.0.0.1:1242/Api/PlayStatus/Play
+```
+
 ## 构建
 
-需要本机 .NET 10 SDK。`build.ps1` 会自动下载 ASF 6.3.8.4 generic 包中的 `ArchiSteamFarm.dll` / `SteamKit2.dll` 作为编译引用：
+需要 .NET 10 SDK。默认 `build.ps1` 会下载 ASF 6.3.8.4 generic 包中的 `ArchiSteamFarm.dll` 和 `SteamKit2.dll` 到版本专属引用目录，验证 ASF 程序集版本后再 restore/build：
 
 ```powershell
 .\build.ps1
 ```
 
+可用 `-AsfVersion` 指定其他四段版本号；项目会使用对应的 `lib/asf-<版本>/` 引用目录。
+
 产物：`AsfPlayStatus/bin/Release/net10.0/AsfPlayStatus.dll`
+
+回归 harness 会链接并编译插件的原始 C# 源文件，ASF API 通过本地 stubs 提供：
+
+```powershell
+dotnet run --project tests/AsfPlayStatus.RegressionHarness/AsfPlayStatus.RegressionHarness.csproj
+```
+
+该 harness 验证插件逻辑，不代替针对目标 ASF 版本的正式产品构建或服务验证。
 
 ## 部署
 
-把 dll 放到 ASF 的 `plugins/AsfPlayStatus/` 子目录并重启 ASF：
+将 DLL 放入 ASF 的 `plugins/AsfPlayStatus/` 子目录并重启 ASF：
 
 ```bash
 ./deploy.sh YOUR_SERVER_IP YOUR_SSH_KEY_PATH
 ```
 
-或手动：
+手动安装：
 
 ```bash
 scp AsfPlayStatus.dll root@SERVER:/opt/ASF/plugins/AsfPlayStatus/
@@ -101,35 +122,30 @@ ssh root@SERVER "chown -R asf:asf /opt/ASF/plugins/AsfPlayStatus && systemctl re
 curl -H 'Authentication: <ASF_IPC_PASSWORD>' http://127.0.0.1:1242/api/playstatus
 ```
 
-## 与 asf-nav-bridge 集成
+## 集成说明
 
-- asf-nav-bridge **v1.2.0** 起，`GET /asf/api/status` 优先读取本插件端点；
-- 重连按钮执行 `resume` + `play` 后会主动 `POST /Api/PlayStatus` 同步列表；
-- 插件不可达时回退到桥接自身 `config.json` 的 `play_appids`。
-
-## 与 play-keep.sh 集成（推荐）
-
-`play-keep.sh` 每次向 ASF 下发 `play` 命令后，应紧接着 POST 一次 `/Api/PlayStatus`，把同一列表写入插件：
-
-```bash
-curl -s -X POST -H "Authentication: <ASF_IPC_PASSWORD>" -H "Content-Type: application/json" \
-  -d '{"Bot":"YOUR_BOT","AppIDs":[123456,654321],"GameNames":{"123456":"Example Game","654321":"Another Game"}}' \
-  http://127.0.0.1:1242/Api/PlayStatus > /dev/null 2>&1
-```
-
-这样即使不经过桥接，插件也能实时反映挂机自动化实际下发的游戏列表。
+- 桥接端可调用 `/Api/PlayStatus/Play`，通过 ASF 的结构化成功结果判断 play 是否接受。
+- `reset`/`resume` 停止手动列表后，调用空 `POST /Api/PlayStatus` 清除旧目标。
+- 若客户端自行通过 ASF 下发 `play`，应随后把相同列表 POST 到 `/Api/PlayStatus` 同步。
+- 插件不可达时，客户端应显示状态未知；配置 `play_appids` 仅可标为目标列表。
 
 ## 注意事项
 
-- ASF 官方 linux-x64 包是**裁剪(trimmed)**单文件构建：插件内只使用 ASF 自身保留的文件 API（`File.WriteAllTextAsync`/`ReadAllTextAsync`/`Move`）和显式 `TypeInfoResolver` 的反射式 JSON 序列化，避免 `MissingMethodException`；
-- 若直接修改 `play-keep.sh` 的挂机列表，请同步更新桥接 `config.json`，并确保脚本同时 POST 到插件（见上文），导航页才会显示新列表；
-- 手动模式（Source=`Manual`）下逐游戏 `CardsRemaining` 为 `null`，`TimeRemaining` 为空字符串——进度数据只在自动挂卡时才有；
-- 出于隐私考虑，API 输出不再包含挂机时长（`HoursPlayed`）与真实账号名。
+- 手动模式下逐游戏 `CardsRemaining` 为 `null`，`TimeRemaining` 为空；挂卡进度仅适用于自动挂卡。
+- API 会掩码 bot 名并省略 `HoursPlayed`，避免暴露账号名和挂机时长。
+- 持久化使用显式 `TypeInfoResolver` 和 ASF 裁剪构建保留的文件 API。
+- 已在 ASF 6.3.10.3 的 linux-x64 裁剪运行时做隔离 IPC、持久化和桥接集成验证。
 
-## 结构
+## 版本和 Release
 
-```
-AsfPlayStatus/          # 插件源码（net10.0 类库）
-build.ps1               # 下载引用 + 编译
-deploy.sh               # 一键部署到服务器并重启 ASF
+默认分支的 GitHub Actions 先运行原源码回归 harness、编译 DLL 和校验版本，成功后为新版本创建标签和 Release。Release 包含源码包、DLL 安装包和 SHA256SUMS。历史标签保持原指向，不重新发布到同名标签。
+
+## 目录
+
+```text
+AsfPlayStatus/          # .NET 10 插件类库
+build.ps1               # 下载引用并构建
+deploy.sh               # 部署并重启 ASF
+CHANGELOG.md             # 版本记录
+tests/                   # 原插件源码回归 harness
 ```

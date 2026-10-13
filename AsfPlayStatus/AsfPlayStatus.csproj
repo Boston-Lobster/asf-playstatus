@@ -6,9 +6,10 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RootNamespace>AsfPlayStatus</RootNamespace>
 		<AssemblyName>AsfPlayStatus</AssemblyName>
-		<Version>1.2.1</Version>
-		<AssemblyVersion>1.2.1.0</AssemblyVersion>
-		<FileVersion>1.2.1.0</FileVersion>
+		<AsfReferenceVersion Condition="'$(AsfReferenceVersion)' == ''">6.3.8.4</AsfReferenceVersion>
+		<Version>1.3.1</Version>
+		<AssemblyVersion>1.3.1.0</AssemblyVersion>
+		<FileVersion>1.3.1.0</FileVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -17,11 +18,11 @@
 
 	<ItemGroup>
 		<Reference Include="ArchiSteamFarm">
-			<HintPath>..\lib\ArchiSteamFarm.dll</HintPath>
+			<HintPath>..\lib\asf-$(AsfReferenceVersion)\ArchiSteamFarm.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="SteamKit2">
-			<HintPath>..\lib\SteamKit2.dll</HintPath>
+			<HintPath>..\lib\asf-$(AsfReferenceVersion)\SteamKit2.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
@@ -30,3 +31,4 @@
 		<PackageReference Include="System.Composition.AttributedModel" Version="10.0.10" IncludeAssets="compile" />
 	</ItemGroup>
 </Project>
+
