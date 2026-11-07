@@ -1,6 +1,6 @@
 # AsfPlayStatus
 
-> 版本：**v1.3.1** ｜ 编译引用：ASF 6.3.8.4 ｜ 目标：.NET 10、linux-x64 ASF 裁剪单文件
+> 版本：**v1.3.2** ｜ 编译引用：ASF 6.3.8.4 ｜ 目标：.NET 10、linux-x64 ASF 裁剪单文件
 
 本插件通过 ASF IPC 暴露自动挂卡状态和最近一次手动下发的游戏目标列表，供 [asf-nav-bridge](https://github.com/Boston-Lobster/asf-nav-bridge) 等客户端使用。
 
@@ -157,6 +157,7 @@ tests/                   # 原插件源码回归 harness
 
 | 版本 | 固定源码 | 校验与附件 |
 | --- | --- | --- |
+| v1.3.2 | [固定源码分支](https://github.com/Boston-Lobster/asf-playstatus/tree/codex/releases/v1.3.2) | [Release](https://github.com/Boston-Lobster/asf-playstatus/releases/tag/v1.3.2) |
 | `v1.3.1` | [`4bd4bbd9b86f`](https://github.com/Boston-Lobster/asf-playstatus/tree/codex/releases/v1.3.1) | [Release](https://github.com/Boston-Lobster/asf-playstatus/releases/tag/v1.3.1) |
 
 版本标签与固定源码分支禁止更新和删除；后续修复使用新版本号，不覆盖旧版本。

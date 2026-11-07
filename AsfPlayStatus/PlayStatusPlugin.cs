@@ -237,7 +237,7 @@ internal sealed class PlayStatusPlugin : IPlugin, IBot, IBotConnection {
 	}
 
 	private static string FormatTimeSpan(TimeSpan timeSpan) {
-		return timeSpan.TotalSeconds < 1 ? "" : timeSpan.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+		return timeSpan.TotalSeconds < 1 ? "" : string.Format(CultureInfo.InvariantCulture, "{0:00}:{1:00}:{2:00}", (long) timeSpan.TotalHours, timeSpan.Minutes, timeSpan.Seconds);
 	}
 
 	private static string PersistenceFilePath {

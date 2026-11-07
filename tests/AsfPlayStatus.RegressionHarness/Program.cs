@@ -37,6 +37,10 @@ File.Delete(tempPath);
 ResetPluginState();
 Bot.Clear();
 
+MethodInfo formatTimeSpan = typeof(PlayStatusPlugin).GetMethod("FormatTimeSpan", BindingFlags.Static | BindingFlags.NonPublic)!;
+string formatted25Hours = (string) formatTimeSpan.Invoke(null, new object[] { TimeSpan.FromHours(25) })!;
+Check(formatted25Hours == "25:00:00", "TimeRemaining keeps cumulative hours beyond 24");
+
 PlayStatusController controller = new();
 PlayStatusPlugin plugin = new();
 Bot bot = new("Primary") { IsConnectedAndLoggedOn = true };
